@@ -2,21 +2,29 @@ import unittest
 from typing import NamedTuple
 from app.yelp import Yelp, YelpConfig, get_config
 from unittest.mock import patch
+from urllib.parse import quote
 
 def test_YelpConfig():
+    api_key = 'API_KEY'
+    headers = { 'Authorization': 'Bearer %s' % api_key }
+
     config = YelpConfig(
         client_id='CLIENT_ID',
-        api_key='API_KEY',
+        api_key=api_key,
         api_host='API_HOST',
         search_path='SEARCH_PATH',
-        business_path='BUSINESS_PATH'
+        business_path='BUSINESS_PATH',
+        url='URL',
+        headers=headers
     )
     
     assert config.client_id == 'CLIENT_ID'
-    assert config.api_key == 'API_KEY'
+    assert config.api_key == api_key
     assert config.api_host == 'API_HOST'
     assert config.search_path == 'SEARCH_PATH'
     assert config.business_path == 'BUSINESS_PATH'
+    assert config.url == 'URL'
+    assert config.headers == headers
     assert issubclass(YelpConfig, tuple)
     assert isinstance(config, tuple)
     assert hasattr(config, '_asdict')
@@ -28,7 +36,15 @@ class TestGetConfig(unittest.TestCase):
     def test_get_config(self, mock_getenv):
         mock_getenv.side_effect = ['client_id', 'api_key']
 
-        expected_config = YelpConfig('client_id', 'api_key', 'https://api.yelp.com', '/v3/businesses/search', '/v3/businesses/')
+        url = '{0}{1}'.format('https://api.yelp.com', quote('/v3/businesses/search'.encode('utf8')))
+        expected_config = YelpConfig('client_id',
+                                     'api_key',
+                                     'https://api.yelp.com',
+                                     '/v3/businesses/search',
+                                     '/v3/businesses/',
+                                     url,
+                                     {'Authorization': 'Bearer api_key'},
+                                    )
         actual_config = get_config()
 
         self.assertEqual(actual_config, expected_config)
@@ -42,7 +58,9 @@ class TestYelp(unittest.TestCase):
             api_key='API_KEY',
             api_host='API_HOST',
             search_path='SEARCH_PATH',
-            business_path='BUSINESS_PATH'
+            business_path='BUSINESS_PATH',
+            url='API_HOSTSEARCH_PATH',
+            headers={'Authorization': 'Bearer API_KEY'}
         )
         self.config = config
         self.yelp = Yelp(config=self.config)

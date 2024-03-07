@@ -17,22 +17,35 @@ class YelpConfig(NamedTuple):
     api_host: str
     search_path: str
     business_path: str
+    url: str
+    headers: dict
+
 
 
 # environment vars
 def get_config() -> YelpConfig:
     """Get Yelp API configuration from environment variables."""
     load_dotenv() 
+    CLIENT_ID = os.getenv('YELP_CLIENT_ID')
+    API_KEY = os.getenv('YELP_API_KEY')
     API_HOST = 'https://api.yelp.com'
     SEARCH_PATH = '/v3/businesses/search'
     BUSINESS_PATH = '/v3/businesses/'
+
+    url = '{0}{1}'.format(API_HOST, quote(SEARCH_PATH.encode('utf8')))
+    headers = {
+        'Authorization': 'Bearer %s' % API_KEY,
+    }
     return YelpConfig(
-        os.getenv('YELP_CLIENT_ID'),
-        os.getenv('YELP_API_KEY'),
+        CLIENT_ID,
+        API_KEY,
         API_HOST,
         SEARCH_PATH,
         BUSINESS_PATH,
+        url,
+        headers,
     )
+
 
 class Yelp:
     """Yelp API client using v3 of the API."""
@@ -49,7 +62,7 @@ class Yelp:
         self.default_search_limit = default_search_limit
 
 
-    def get_businesses(self, search_term:str, location:str, search_limit:int=0):
+    def get_businesses(self, search_term:str, location:str, search_limit:int=0) -> dict:
         """send a GET request to the API.
 
         Args:
@@ -69,14 +82,9 @@ class Yelp:
             'limit': search_limit or self.default_search_limit
         }
 
-        url = '{0}{1}'.format(self.config.api_host, quote(self.config.search_path.encode('utf8')))
-        headers = {
-            'Authorization': 'Bearer %s' % self.config.api_key,
-        }
+        print(u'Querying {0} ...'.format(self.config.url))
 
-        print(u'Querying {0} ...'.format(url))
-
-        response = requests.request('GET', url, headers=headers, params=url_params)
+        response = requests.request('GET', self.config.url, headers=self.config.headers, params=url_params)
 
         return response.json()
     
