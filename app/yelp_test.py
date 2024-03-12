@@ -1,80 +1,100 @@
 import unittest
-from typing import NamedTuple
-from app.yelp import Yelp, YelpConfig, get_config
+from app.yelp import Yelp, Address, Business
+from app.config import YelpConfig
 from unittest.mock import patch
 from urllib.parse import quote
 
-def test_YelpConfig():
-    api_key = 'API_KEY'
-    headers = { 'Authorization': 'Bearer %s' % api_key }
 
-    config = YelpConfig(
-        client_id='CLIENT_ID',
-        api_key=api_key,
-        api_host='API_HOST',
-        search_path='SEARCH_PATH',
-        business_path='BUSINESS_PATH',
-        url='URL',
-        headers=headers
-    )
-    
-    assert config.client_id == 'CLIENT_ID'
-    assert config.api_key == api_key
-    assert config.api_host == 'API_HOST'
-    assert config.search_path == 'SEARCH_PATH'
-    assert config.business_path == 'BUSINESS_PATH'
-    assert config.url == 'URL'
-    assert config.headers == headers
-    assert issubclass(YelpConfig, tuple)
-    assert isinstance(config, tuple)
-    assert hasattr(config, '_asdict')
-    assert hasattr(config, '_fields')
+class TestAddress(unittest.TestCase):
+
+    def test_basic(self):
+        street = 'street'
+        street2 = 'street2'
+        city = 'city'
+        state = 'state'
+        zip = 'zip'
+
+        addr = Address(
+            street=street,
+            street2=street2,
+            city=city,
+            state=state,
+            zip=zip,
+        )
+        assert addr.street == street
+        assert addr.street2 == street2
+        assert addr.city == city
+        assert addr.state == state
+        assert addr.zip == zip
+        assert issubclass(Address, tuple)
+        assert isinstance(addr, tuple)
+        assert hasattr(addr, '_asdict')
+        assert hasattr(addr, '_fields')
 
 
-class TestGetConfig(unittest.TestCase):
-    @patch('os.getenv')
-    def test_get_config(self, mock_getenv):
-        mock_getenv.side_effect = ['client_id', 'api_key']
+    def test_missing_addr2(self):
+        street = 'street'
+        street2 = None
+        city = 'city'
+        state = 'state'
+        zip = 'zip'
 
-        url = '{0}{1}'.format('https://api.yelp.com', quote('/v3/businesses/search'.encode('utf8')))
-        expected_config = YelpConfig('client_id',
-                                     'api_key',
-                                     'https://api.yelp.com',
-                                     '/v3/businesses/search',
-                                     '/v3/businesses/',
-                                     url,
-                                     {'Authorization': 'Bearer api_key'},
-                                    )
-        actual_config = get_config()
+        addr = Address(
+            street=street,
+            street2=street2,
+            city=city,
+            state=state,
+            zip=zip,
+        )
+        assert addr.street == street
+        assert addr.street2 == street2
+        assert addr.city == city
+        assert addr.state == state
+        assert addr.zip == zip
 
-        self.assertEqual(actual_config, expected_config)
 
+class TestBusiness(unittest.TestCase):
+
+    def test_default(self):
+        id = '111'
+        name = 'ABC Corp'
+        address = '123 Main'
+        phone = '(123) 456-7890'
+        reviews = []
+
+        biz = Business(
+            id=id,
+            name=name,
+            address=address,
+            phone=phone,
+            reviews=reviews,
+        )
+        assert biz.id == id
+        assert biz.name == name
+        assert biz.address == address
+        assert biz.phone == phone
+        assert biz.reviews == reviews
+
+        
+        
 
 class TestYelp(unittest.TestCase):
+    @patch('os.getenv')
+    def setUp(self, mock_getenv):
+        client_id = 'client_id'
+        api_key = 'api_key'
+        mock_getenv.side_effect = [client_id, api_key]
 
-    def setUp(self):
-        config = YelpConfig(
-            client_id='CLIENT_ID',
-            api_key='API_KEY',
-            api_host='API_HOST',
-            search_path='SEARCH_PATH',
-            business_path='BUSINESS_PATH',
-            url='API_HOSTSEARCH_PATH',
-            headers={'Authorization': 'Bearer API_KEY'}
-        )
-        self.config = config
-        self.yelp = Yelp(config=self.config)
+        self.yelp = Yelp()
 
+    def test_config(self):
+        
+        assert self.yelp.config.client_id == 'client_id'
+        assert self.yelp.config.api_key == 'api_key'
 
-    def test_initialize_no_config(self):
+    def test_initialize(self):
         self.yelp = Yelp()
         assert self.yelp.default_search_limit == 10
-
-
-    def test_initialize_with_config(self):
-        
-        self.yelp = Yelp(config=self.config)
-        assert self.yelp.config == self.config
 
 
     @patch('yelp.requests.request')
@@ -96,10 +116,35 @@ class TestYelp(unittest.TestCase):
 
         mock_request.assert_called_once_with(
             'GET',
-            f'{self.yelp.config.api_host}{self.yelp.config.search_path}',
-            headers={'Authorization': f'Bearer {self.config.api_key}'},
+            f'{self.yelp.config.api_host}{quote("/v3/businesses/search".encode("utf8"))}',
+            headers={'Authorization': f'Bearer {self.yelp.config.api_key}'},
             params={'term': 'restaurant', 'location': 'New+York', 'limit': 5}
         )
         self.assertEqual(result, mock_response)
+    
+
+    @patch('yelp.requests.request')
+    def test_get_business_reviews(self, mock_request):
+        mock_response = {
+            'reviews': [
+                {'user': 'John Doe', 'rating': 5, 'review': 'best company ever!'},
+                {'user': 'Jane Doe', 'rating': 1, 'review': 'worst place to go'}
+            ]
+        }
+
+        mock_request.return_value.json.return_value = mock_response
+
+        biz_id='some_id'
+        result = self.yelp.get_business_reviews(biz_id)
+
+        mock_request.assert_called_once_with(
+            'GET',
+            f'{self.yelp.config.api_host}{quote(f"/v3/businesses/{biz_id}/reviews".encode("utf8"))}',
+            headers={'Authorization': f'Bearer {self.yelp.config.api_key}'},
+            params={'limit': 1}
+        )
+        self.assertEqual(result, mock_response)
+
+
 
 

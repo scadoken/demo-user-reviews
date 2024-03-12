@@ -1,98 +1,29 @@
-import argparse
-import json
-import os
-import pprint
+
 import requests
-import sys
-import urllib
-from dotenv import load_dotenv
+
 from urllib.parse import quote
 from typing import NamedTuple, Optional
+from dataclasses import dataclass
+
+from config import YelpConfig
 
 
-class YelpConfig(NamedTuple):
-    """Named tuple for Yelp API configuration."""
-    client_id: str
-    api_key: str
-    api_host: str
-    search_path: str
-    business_path: str
-    url: str
-    headers: dict
+class Address(NamedTuple):
+    street: str
+    street2: Optional[str]
+    city: str
+    state: str
+    zip: str
 
 
-
-# environment vars
-def get_config() -> YelpConfig:
-    """Get Yelp API configuration from environment variables."""
-    load_dotenv() 
-    CLIENT_ID = os.getenv('YELP_CLIENT_ID')
-    API_KEY = os.getenv('YELP_API_KEY')
-    API_HOST = 'https://api.yelp.com'
-    SEARCH_PATH = '/v3/businesses/search'
-    BUSINESS_PATH = '/v3/businesses/'
-
-    url = '{0}{1}'.format(API_HOST, quote(SEARCH_PATH.encode('utf8')))
-    headers = {
-        'Authorization': 'Bearer %s' % API_KEY,
-    }
-    return YelpConfig(
-        CLIENT_ID,
-        API_KEY,
-        API_HOST,
-        SEARCH_PATH,
-        BUSINESS_PATH,
-        url,
-        headers,
-    )
-
-
-class Yelp:
-    """Yelp API client using v3 of the API."""
-    
-    def __init__(
-            self,
-            default_search_limit: int = 10,
-            config: Optional[YelpConfig] = None,
-        ) -> None:
-        
-        self.config = config
-        
-        # default vars
-        self.default_search_limit = default_search_limit
-
-
-    def get_businesses(self, search_term:str, location:str, search_limit:int=0) -> dict:
-        """send a GET request to the API.
-
-        Args:
-            search_term (str): The term to search for (i.e. 'restaurants' or 'plumber').
-            location (str): The location to search (i.e. 'San Francisco, CA').
-            search_limit (str): The max limit of results to return (i.e. 10).
-
-        Returns:
-            dict: The JSON response from the request.
-
-        Raises:
-            HTTPError: An error occurs from the HTTP request.
-        """
-        url_params = {
-            'term': search_term.replace(' ', '+'),
-            'location': location.replace(' ', '+'),
-            'limit': search_limit or self.default_search_limit
-        }
-
-        print(u'Querying {0} ...'.format(self.config.url))
-
-        response = requests.request('GET', self.config.url, headers=self.config.headers, params=url_params)
-
-        return response.json()
-    
-
+@dataclass
 class Business:
-
-    def __init__(self):
-        pass
+    """Class for keeping track of yelp business info"""
+    id: str
+    name: str
+    address: Address
+    phone: str
+    reviews: Optional[list]
 
 
     def get_engagement_metrics(self):
@@ -113,6 +44,69 @@ class Business:
     def get_review_highlights(self):
         # https://docs.developer.yelp.com/reference/v3_business_review_highlights
         pass
+
+
+class Yelp:
+    """Yelp API client using v3 of the API."""
+    
+    def __init__(
+            self,
+            default_search_limit: int = 10,
+        ) -> None:
+        
+        # default vars
+        self.default_search_limit = default_search_limit
+        self.config = YelpConfig()
+
+
+    def get_request(self, api:str, params:Optional[dict]=None) -> dict:
+        """send a GET request to the API.
+
+        Args:
+            url (str): The URL to send the request to.
+            headers (dict): The headers to include in the request.
+            params (dict): The parameters to include in the request.
+
+        Returns:
+            dict: The JSON response from the request.
+
+        Raises:
+            HTTPError: An error occurs from the HTTP request.
+        """
+        url = '{0}{1}'.format(self.config.api_host, quote(api.encode('utf8')))
+        response = requests.request('GET', url, headers=self.config.headers, params=params)
+        response.raise_for_status()
+        return response.json()
+    
+
+    def get_businesses(self, search_term:str, location:str, search_limit:int=0) -> dict:
+
+        api = '/v3/businesses/search'
+
+        url_params = {
+            'term': search_term.replace(' ', '+'),
+            'location': location.replace(' ', '+'),
+            'limit': search_limit or self.default_search_limit
+        }
+
+        response = self.get_request(api, params=url_params)
+
+        return response
+    
+
+    def get_business_reviews(self, business_id:str, review_limit:int=1) -> dict:
+
+        api = f'/v3/businesses/{business_id}/reviews'
+
+        url_params = {
+            'limit': review_limit or self.default_search_limit
+        }
+
+        response = self.get_request(api, params=url_params)
+
+        return response
+
+    
 
 # if __name__ == '__main__':
 #     parser = argparse.ArgumentParser()
