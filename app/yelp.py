@@ -94,7 +94,7 @@ class Yelp:
         return response
     
 
-    def get_business_reviews(self, business_id:str, review_limit:int=1) -> dict:
+    def get_business_reviews(self, business_id:str, review_limit:int=0) -> dict:
 
         api = f'/v3/businesses/{business_id}/reviews'
 

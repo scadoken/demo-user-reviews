@@ -141,7 +141,7 @@ class TestYelp(unittest.TestCase):
             'GET',
             f'{self.yelp.config.api_host}{quote(f"/v3/businesses/{biz_id}/reviews".encode("utf8"))}',
             headers={'Authorization': f'Bearer {self.yelp.config.api_key}'},
-            params={'limit': 1}
+            params={'limit': 10}
         )
         self.assertEqual(result, mock_response)
 
