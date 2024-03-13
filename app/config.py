@@ -14,5 +14,6 @@ class YelpConfig:
         self.api_key = os.getenv('YELP_API_KEY')
         self.api_host = 'https://api.yelp.com'
         self.headers = {
-            'Authorization': 'Bearer %s' % self.api_key,
+            'Authorization': 'Bearer ' + self.api_key,
+            'accept': 'application/json',
         }
