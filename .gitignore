@@ -8,11 +8,15 @@
 .venv
 config
 
+# exceptions to the above rules
+!app/db/.env
+
 # quick notes
 notes/
 
 # data outputs
 downloads/
+app/db/data/
 .xlsx
 
 # misc tools
