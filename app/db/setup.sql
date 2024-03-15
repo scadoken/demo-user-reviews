@@ -10,7 +10,6 @@ create table business (
 	zip5 varchar(5),
 	state varchar(2),
 	phone varchar(15),
-	_update_dt date,
 	CONSTRAINT pk_business PRIMARY KEY(id)
 );
 
@@ -21,7 +20,12 @@ create table review (
 	create_dt date,
 	stars int,
 	txt varchar(5000),
-	_update_dt date,
 	
 	CONSTRAINT pk_review PRIMARY KEY(business_id, user_id, create_dt)
+);
+
+create table business_category (
+	business_id varchar(20) references business(id),
+	category varchar(100),
+	CONSTRAINT pk_business_category PRIMARY KEY(business_id, category)
 );
