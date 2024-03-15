@@ -12,3 +12,9 @@ Obtain a `client id` and an `api key` by [creating a Yelp app](https://www.yelp.
 YELP_CLIENT_ID
 YELP_API_KEY
 ```
+
+## Setup Database
+Change directories to `/app/db` and run `docker compose up`.
+
+Update values in `.env` and make sure the postgres vals match whatever was entered in `/app/db/.env`.
+
